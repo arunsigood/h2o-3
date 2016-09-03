@@ -37,11 +37,7 @@ abstract class ZipUtil {
   static byte [] getFirstUnzippedBytes( ByteVec bv ) {
     try {
       byte[] bits = bv.getFirstBytes();
-
-      if ((guessCompressionMethod(bits) == Compression.ZIP) && (isZipDirectory(bv)))
-        return unzipBytes(bits, FileVec.DFLT_CHUNK_SIZE);
-      else
-        return unzipBytes(bits, guessCompressionMethod(bits), FileVec.DFLT_CHUNK_SIZE);
+      return unzipBytes(bits, guessCompressionMethod(bits), FileVec.DFLT_CHUNK_SIZE);
     } catch(Exception e) {
       Log.debug("Cannot get unzipped bytes from ByteVec!", e);
       return null;
@@ -185,52 +181,6 @@ abstract class ZipUtil {
     return 1;
   }
 
-  /**
-   * This method will unzipBytes for file that is part of a zip file directory
-   * structure.
-   *
-   * @param bs
-   * @param chkSize
-   * @return
-   */
-  static byte[] unzipBytes( byte[] bs, int chkSize ) {
-    // bs is a byte[]
-    // Wrap the bytes in a stream
-    ByteArrayInputStream bais = new ByteArrayInputStream(bs);
-    InputStream is = null;
-    try {
-
-      ZipInputStream zis = new ZipInputStream(bais);
-      ZipEntry ze = zis.getNextEntry(); // Get the entry which describes the directory
-      ze = zis.getNextEntry();          // this should describe the file
-      is = zis;
-
-      // If reading from a compressed stream, estimate we can read 2x uncompressed
-      bs = new byte[bs.length * 2];
-      // Now read from the compressed stream
-      int off = 0;
-      while( off < bs.length ) {
-        int len = is.read(bs, off, bs.length - off);
-        if( len < 0 )
-          break;
-        off += len;
-        if( off == bs.length ) { // Dataset is uncompressing alot! Need more space...
-          if( bs.length >= chkSize )
-            break; // Already got enough
-          bs = Arrays.copyOf(bs, bs.length * 2);
-        }
-      }
-    } catch( IOException ioe ) {
-      throw Log.throwErr(ioe);
-    } finally {
-      try {
-        if( is != null ) is.close();
-      } catch( IOException ignore ) { }
-    }
-
-    return bs;
-  }
-
 
   static byte[] unzipBytes( byte[] bs, Compression cmp, int chkSize ) {
     if( cmp == Compression.NONE ) return bs; // No compression
@@ -242,7 +192,8 @@ abstract class ZipUtil {
         ZipInputStream zis = new ZipInputStream(bais);
         ZipEntry ze = zis.getNextEntry(); // Get the *FIRST* entry
         // There is at least one entry in zip file and it is not a directory.
-        if( ze == null || ze.isDirectory() ) return bs; // Don't crash, ignore file if cannot unzip
+        if( ze == null || ze.isDirectory() )
+          zis.getNextEntry(); // read the next entry which should be a file
         is = zis;
       } else {
         assert cmp == Compression.GZIP;
@@ -273,4 +224,47 @@ abstract class ZipUtil {
     return bs;
   }
 
+  /**
+   * This method will read a compressed zip file and return the uncompressed bits so that we can
+   * check the beginning of the file and make sure it does not contain the column names.
+   *
+   * @param bs
+   * @param chkSize
+   * @return
+   */
+  static byte[] unzipForHeader( byte[] bs, int chkSize ) {
+
+    ByteArrayInputStream bais = new ByteArrayInputStream(bs);
+    ZipInputStream zis = new ZipInputStream(bais);
+
+    InputStream is = zis;
+
+    // Now read from the compressed stream
+    int off = 0;
+
+    try {
+      while( off < bs.length ) {
+        int len = 0;
+        len = is.read(bs, off, bs.length - off);
+        if( len < 0 )
+          break;
+        off += len;
+        if( off == bs.length ) { // Dataset is uncompressing alot! Need more space...
+          if( bs.length >= chkSize )
+            break; // Already got enough
+          bs = Arrays.copyOf(bs, bs.length * 2);
+        }
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    try {
+      is.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    return bs;
+  }
 }

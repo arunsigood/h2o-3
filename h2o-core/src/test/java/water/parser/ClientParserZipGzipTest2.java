@@ -23,11 +23,15 @@ public class ClientParserZipGzipTest2 extends TestUtil {
 
     assertTrue(TestUtil.isBitIdentical(one_zip_file, one_csv_file));*/
 
-    Frame one_csv_directory = parse_test_file("smalldata/parser/hexdev_497/airlines_small_csv");
-//    Frame one_zip_directory = parse_test_file("smalldata/parser/hexdev_497/airlines_small_csv.zip");
-
+    Frame one_zip_directory = parse_test_file("smalldata/parser/hexdev_497/airlines_small_csv.zip");
+//    Frame one_csv_directory = parse_test_folder("smalldata/parser/hexdev_497/airlines_small_csv");
+    Frame one_csv_directory = parse_test_file("smalldata/parser/hexdev_497/airlines_small_csv/airlines1.csv");
 
 
 //    assertTrue(TestUtil.isBitIdentical(one_zip_directory, one_csv_directory));
+
+    if (one_zip_directory != null) one_zip_directory.delete();
+    if (one_csv_directory != null) one_csv_directory.delete();
+
   }
 }

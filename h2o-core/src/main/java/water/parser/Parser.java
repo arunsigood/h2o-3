@@ -10,6 +10,8 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.zip.ZipInputStream;
 
+import static water.parser.ParseSetup.GUESS_HEADER;
+
 /** A collection of utility classes for parsing.
  *
  *  Interfaces:
@@ -105,6 +107,22 @@ public abstract class Parser extends Iced {
         }
         nextChunk = nextChunk.nextChunk();
       }
+
+      if (cidx == 0)  {
+        // perform check header for each file again in order to determine if that file contains a header
+        // if column names are found in first row, set the _check_header field accordingly.
+        byte[] headerBytes = ZipUtil.unzipForHeader(din.getChunkData(cidx), this._setup._chunk_size);
+        ParserProvider pp = ParserService.INSTANCE.getByInfo(this._setup.getParseType());
+        ParseSetup ps = pp.guessSetup(null, headerBytes, this._setup._separator, this._setup.getColumnTypes().length,
+                this._setup._single_quotes, GUESS_HEADER, this._setup._column_names, this._setup.getColumnTypes(),
+                null, null);
+
+        this._setup.setCheckHeader(ps._check_header);
+
+        if ((this._setup._column_names == null) && (ps._column_names != null))
+          this._setup.setColumnNames(ps.getColumnNames());
+      }
+
       parseChunk(cidx++, din, nextChunk);
 
       if ((is.available() <= 0) && (is instanceof java.util.zip.ZipInputStream)) {

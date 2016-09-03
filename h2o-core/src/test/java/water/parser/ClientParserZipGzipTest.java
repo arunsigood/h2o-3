@@ -6,6 +6,7 @@ import water.TestUtil;
 import water.fvec.Frame;
 
 import java.io.IOException;
+import static org.junit.Assert.assertTrue;
 
 public class ClientParserZipGzipTest extends TestUtil {
   //
@@ -19,15 +20,10 @@ public class ClientParserZipGzipTest extends TestUtil {
 
   @Test
   public void testBasic() throws IOException {
-//    Frame one_zip_file = parse_test_file("smalldata/parser/hexdev_497/milsongs_csv_gzip/000000_0.gz");
-/*    Frame one_csv_file = parse_test_file("smalldata/parser/hexdev_497/milsongs_csv/000000_0.csv");
-
-    assertTrue(TestUtil.isBitIdentical(one_zip_file, one_csv_file));*/
-
-    Frame one_zip_directory = parse_test_file("smalldata/parser/hexdev_497/milsongs_csv.zip");
-//    Frame one_csv_directory = parse_test_file("smalldata/parser/hexdev_497/milsongs_csv");
+    Frame one_zip_directory = parse_test_file("bigdata/laptop/parser/hexdev_497/milsongs_csv.zip");
+    Frame one_csv_directory = parse_test_folder("bigdata/laptop/parser/hexdev_497/milsongs_csv_gzip");
 
 
-//    assertTrue(TestUtil.isBitIdentical(one_zip_directory, one_csv_directory));
+    assertTrue(TestUtil.isBitIdentical(one_zip_directory, one_csv_directory));
   }
 }
