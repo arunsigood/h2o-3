@@ -24,6 +24,7 @@ class ModelMetricsHandler extends Handler {
     public boolean _reverse_transform;
     public boolean _leaf_node_assignment;
     public int _exemplar_index = -1;
+    public boolean _residual;
 
     // Fetch all metrics that match model and/or frame
     ModelMetricsList fetch() {
@@ -88,6 +89,9 @@ class ModelMetricsHandler extends Handler {
     @API(help = "Key of predictions frame, if predictions are requested (optional)", direction = API.Direction.INOUT)
     public KeyV3.FrameKeyV3 predictions_frame;
 
+    @API(help = "Key for the frame containing per-observation residuals (optional)", direction = API.Direction.INOUT)
+    public KeyV3.FrameKeyV3 residual_frame;
+
     @API(help = "Compute reconstruction error (optional, only for Deep Learning AutoEncoder models)", json = false)
     public boolean reconstruction_error;
 
@@ -112,6 +116,9 @@ class ModelMetricsHandler extends Handler {
     @API(help = "Retrieve all members for a given exemplar (optional, only for Aggregator models)", json = false)
     public int exemplar_index;
 
+    @API(help = "Compute the residual per row (optional, only for classification or regression models)", json = false)
+    public boolean residual;
+
     // Output fields
     @API(help = "ModelMetrics", direction = API.Direction.OUTPUT)
     public ModelMetricsBaseV3[] model_metrics;
@@ -129,6 +136,7 @@ class ModelMetricsHandler extends Handler {
       mml._reverse_transform = this.reverse_transform;
       mml._leaf_node_assignment = this.leaf_node_assignment;
       mml._exemplar_index = this.exemplar_index;
+      mml._residual = this.residual;
 
       if (null != model_metrics) {
         mml._model_metrics = new ModelMetrics[model_metrics.length];
@@ -154,6 +162,7 @@ class ModelMetricsHandler extends Handler {
       this.reverse_transform = mml._reverse_transform;
       this.leaf_node_assignment = mml._leaf_node_assignment;
       this.exemplar_index = mml._exemplar_index;
+      this.residual = mml._residual;
 
       if (null != mml._model_metrics) {
         this.model_metrics = new ModelMetricsBaseV3[mml._model_metrics.length];
@@ -360,11 +369,18 @@ class ModelMetricsHandler extends Handler {
     ModelMetricsList parms = s.createAndFillImpl();
 
     Frame predictions;
+    Frame residual = null;
     if (!s.reconstruction_error && !s.reconstruction_error_per_feature && s.deep_features_hidden_layer < 0 &&
         !s.project_archetypes && !s.reconstruct_train && !s.leaf_node_assignment && s.exemplar_index < 0) {
       if (null == parms._predictions_name)
         parms._predictions_name = "predictions" + Key.make().toString().substring(0,5) + "_" + parms._model._key.toString() + "_on_" + parms._frame._key.toString();
       predictions = parms._model.score(parms._frame, parms._predictions_name);
+      if (s.residual) {
+        if (!parms._model.isSupervised())
+          throw new H2OIllegalArgumentException("Residual can only be computed for supervised models.");
+        String residual_name = "residual" + Key.make().toString().substring(0, 5) + "_" + parms._model._key.toString() + "_on_" + parms._frame._key.toString();
+        residual = parms._model.computeResiduals(parms._frame, predictions, residual_name);
+      }
     } else {
       if (Model.DeepFeatures.class.isAssignableFrom(parms._model.getClass())) {
         if (s.reconstruction_error || s.reconstruction_error_per_feature) {
@@ -417,6 +433,8 @@ class ModelMetricsHandler extends Handler {
     mm.predictions_frame = new KeyV3.FrameKeyV3(predictions._key);
     if (parms._leaf_node_assignment) //don't show metrics in leaf node assignments are made
       mm.model_metrics = null;
+    if (residual !=null)
+      mm.residual_frame = new KeyV3.FrameKeyV3(residual._key);
 
     if (null == mm.model_metrics || 0 == mm.model_metrics.length) {
       // There was no response in the test set -> cannot make a model_metrics object
