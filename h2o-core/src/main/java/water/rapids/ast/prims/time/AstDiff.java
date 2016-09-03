@@ -18,7 +18,7 @@ import water.util.ArrayUtils;
  * This method is purely for the console right now.  Print stuff into the string buffer.
  * JSON response is not configured at all.
  */
-public class AstDiffLag1 extends AstPrimitive {
+public class AstDiff extends AstPrimitive {
   @Override
   public String[] args() {
     return new String[]{"ary"};
@@ -31,12 +31,12 @@ public class AstDiffLag1 extends AstPrimitive {
 
   @Override
   public String str() {
-    return "difflag1";
+    return "diff";
   }
 
   @Override
   public Val apply(Env env, Env.StackHelp stk, AstRoot asts[]) {
-    Frame fr = stk.track(asts[2].exec(env).getFrame());
+    Frame fr = stk.track(asts[1].exec(env).getFrame());
     if (fr.numCols() != 1)
       throw new IllegalArgumentException("Expected a single column for diff. Got: " + fr.numCols() + " columns.");
     if (!fr.anyVec().isNumeric())
